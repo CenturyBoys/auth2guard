@@ -35,14 +35,12 @@ class Sentinel:
         token_not_found: Type[Exception] = None,
         not_from_origin: Type[Exception] = None,
         expired: Type[Exception] = None,
-        config_exception: Type[Exception] = None,
         unauthorized: Type[Exception] = None,
     ):  # pylint: disable=R0913
         exceptions_map = {
             ExceptionType.TOKEN_NOT_FOUND: token_not_found,
             ExceptionType.NOT_FROM_ORIGIN: not_from_origin,
             ExceptionType.EXPIRED: expired,
-            ExceptionType.CONFIG_ERROR: config_exception,
             ExceptionType.UNAUTHORIZED: unauthorized,
         }
         filtered_exceptions_map = {
@@ -106,8 +104,9 @@ class Sentinel:
             )
         cls.__config.update({"request_token_callback": request_token_callback})
 
-    def __init__(self, allowed_scopes: set):
+    def __init__(self, allowed_scopes: set, and_validation: bool):
         self.__allowed_scopes = allowed_scopes
+        self.__and_validation = and_validation
 
     def __call__(self, func):
         is_sync_function = asyncio.iscoroutinefunction(func)
@@ -183,8 +182,14 @@ class Sentinel:
         token_type_and_content = self.__get_token(request=request)
         token_content = self.__decode_token(token_content=token_type_and_content[1])
         token_scope = token_content.get("scope", "")
-        scopes = set(token_scope.split(","))
-        if self.__allowed_scopes - scopes:
+        scopes = set(token_scope.split(" "))
+        scopes_sub_set = self.__allowed_scopes - scopes
+        and_validation_satisfied = not scopes_sub_set and self.__and_validation
+        or_operation_satisfied = (
+            bool(len(self.__allowed_scopes) - len(scopes_sub_set))
+            and not self.__and_validation
+        )
+        if not (and_validation_satisfied or or_operation_satisfied):
             self.exception_raiser(
                 exception_type=ExceptionType.UNAUTHORIZED,
                 message="authentication.unauthorized",
