@@ -7,13 +7,14 @@ from typing import List, Union, Type
 from auth2guard.sentinel import Sentinel
 
 
-def validate(allowed_scopes: List[str]) -> Sentinel:
+def validate(allowed_scopes: List[str], and_operation: bool = True) -> Sentinel:
     """
     This is a decorator for you routes. Will return a Sentinel instance.
     :param allowed_scopes: List of scopes that is required for access this route
+    :param and_operation: Boolean to define if the allowed_scopes is AND operation or a OR operaion
     :return: Sentinel function wrapper
     """
-    return Sentinel(allowed_scopes=set(allowed_scopes))
+    return Sentinel(allowed_scopes=set(allowed_scopes), and_operation=and_operation)
 
 
 def set_config(
@@ -41,7 +42,6 @@ def overwrite_exceptions(
     token_not_found: Type[Exception] = None,
     not_from_origin: Type[Exception] = None,
     expired: Type[Exception] = None,
-    config_exception: Type[Exception] = None,
     unauthorized: Type[Exception] = None,
 ):
     """
@@ -51,8 +51,6 @@ def overwrite_exceptions(
     :param not_from_origin: Error when token was generated not by the giving JWK.
     Validate the config jwk.
     :param expired: Error when exp JWT param exceeded the time.
-    :param config_exception: Error when some problem with the giving value.
-    Will be raised when call set_config.
     :param unauthorized: Error when the JWT has not all necessary scope to proceed.
     :return: None
     """
@@ -60,7 +58,6 @@ def overwrite_exceptions(
         token_not_found=token_not_found,
         not_from_origin=not_from_origin,
         expired=expired,
-        config_exception=config_exception,
         unauthorized=unauthorized,
     )
 
