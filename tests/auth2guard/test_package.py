@@ -170,7 +170,7 @@ def test_validation_with_request_token_callback_config(route_callback, with_jwk)
     route_callback(request=request)
 
 
-def test_validation_with_and_operation_true_raise_exception(route_callback, with_jwk):
+def test_validation_with_and_validation_true_raise_exception(route_callback, with_jwk):
     token = gen_token("test1", 2)
     request = Request(headers={"Authorization": f"Basic {token}"})
     with pytest.raises(ValueError) as error:
@@ -178,14 +178,14 @@ def test_validation_with_and_operation_true_raise_exception(route_callback, with
     assert error.value.args[0] == "authentication.unauthorized"
 
 
-def test_validation_with_and_operation_true(route_callback, with_jwk):
+def test_validation_with_and_validation_true(route_callback, with_jwk):
     token = gen_token("test1 test2", 2)
     request = Request(headers={"Authorization": f"Basic {token}"})
     route_callback(request=request)
 
 
-def test_validation_with_and_operation_false_raise_exception(with_jwk):
-    @auth2guard.validate(["test1", "test2"], and_operation=False)
+def test_validation_with_and_validation_false_raise_exception(with_jwk):
+    @auth2guard.validate(["test1", "test2"], and_validation=False)
     def callback(request):
         pass
 
@@ -195,8 +195,8 @@ def test_validation_with_and_operation_false_raise_exception(with_jwk):
         callback(request=request)
 
 
-def test_validation_with_and_operation_false(with_jwk):
-    @auth2guard.validate(["test1", "test2"], and_operation=False)
+def test_validation_with_and_validation_false(with_jwk):
+    @auth2guard.validate(["test1", "test2"], and_validation=False)
     def callback(request):
         pass
 

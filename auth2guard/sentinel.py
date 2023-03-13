@@ -104,9 +104,9 @@ class Sentinel:
             )
         cls.__config.update({"request_token_callback": request_token_callback})
 
-    def __init__(self, allowed_scopes: set, and_operation: bool):
+    def __init__(self, allowed_scopes: set, and_validation: bool):
         self.__allowed_scopes = allowed_scopes
-        self.__and_operation = and_operation
+        self.__and_validation = and_validation
 
     def __call__(self, func):
         is_sync_function = asyncio.iscoroutinefunction(func)
@@ -184,12 +184,12 @@ class Sentinel:
         token_scope = token_content.get("scope", "")
         scopes = set(token_scope.split(" "))
         scopes_sub_set = self.__allowed_scopes - scopes
-        and_operation_satisfied = not scopes_sub_set and self.__and_operation
+        and_validation_satisfied = not scopes_sub_set and self.__and_validation
         or_operation_satisfied = (
             bool(len(self.__allowed_scopes) - len(scopes_sub_set))
-            and not self.__and_operation
+            and not self.__and_validation
         )
-        if not (and_operation_satisfied or or_operation_satisfied):
+        if not (and_validation_satisfied or or_operation_satisfied):
             self.exception_raiser(
                 exception_type=ExceptionType.UNAUTHORIZED,
                 message="authentication.unauthorized",

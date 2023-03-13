@@ -7,14 +7,14 @@ from typing import List, Union, Type
 from auth2guard.sentinel import Sentinel
 
 
-def validate(allowed_scopes: List[str], and_operation: bool = True) -> Sentinel:
+def validate(allowed_scopes: List[str], and_validation: bool = True) -> Sentinel:
     """
     This is a decorator for you routes. Will return a Sentinel instance.
     :param allowed_scopes: List of scopes that is required for access this route
-    :param and_operation: Boolean to define if the allowed_scopes is AND operation or a OR operaion
+    :param and_validation: Boolean to define if the allowed_scopes is AND operation or a OR operaion
     :return: Sentinel function wrapper
     """
-    return Sentinel(allowed_scopes=set(allowed_scopes), and_operation=and_operation)
+    return Sentinel(allowed_scopes=set(allowed_scopes), and_validation=and_validation)
 
 
 def set_config(
