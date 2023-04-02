@@ -104,9 +104,12 @@ class Sentinel:
             )
         cls.__config.update({"request_token_callback": request_token_callback})
 
-    def __init__(self, allowed_scopes: set, and_validation: bool):
+    def __init__(
+        self, allowed_scopes: set, and_validation: bool, inject_token_content: bool
+    ):
         self.__allowed_scopes = allowed_scopes
         self.__and_validation = and_validation
+        self.__inject_token_content = inject_token_content
 
     def __call__(self, func):
         is_sync_function = asyncio.iscoroutinefunction(func)
@@ -114,7 +117,9 @@ class Sentinel:
 
             async def async_checker(*args, request: Request, **kwargs):
                 kwargs.update({"request": request})
-                self._supervision(request=request)
+                token_content = self._supervision(request=request)
+                if self.__inject_token_content:
+                    kwargs.update({"token_content": token_content})
                 return await func(*args, **kwargs)
 
             checker = async_checker
@@ -123,7 +128,9 @@ class Sentinel:
 
             def sync_checker(*args, request: Request, **kwargs):
                 kwargs.update({"request": request})
-                self._supervision(request=request)
+                token_content = self._supervision(request=request)
+                if self.__inject_token_content:
+                    kwargs.update({"token_content": token_content})
                 return func(*args, **kwargs)
 
             checker = sync_checker
@@ -178,7 +185,7 @@ class Sentinel:
                 message="authentication.not_from_origin",
             )
 
-    def _supervision(self, request: Request):
+    def _supervision(self, request: Request) -> dict:
         token_type_and_content = self.__get_token(request=request)
         token_content = self.__decode_token(token_content=token_type_and_content[1])
         token_scope = token_content.get("scope", "")
@@ -194,3 +201,4 @@ class Sentinel:
                 exception_type=ExceptionType.UNAUTHORIZED,
                 message="authentication.unauthorized",
             )
+        return token_content
