@@ -94,7 +94,7 @@ auth2guard.overwrite_exceptions(unauthorized=MyException)
 
 ## Validator
 
-Can be used as decorator and receive a list of scopes. The validator will operate AND validation or a OR validation with the token scope content. For the AND validation all scopes in the `allowed_scopes` param need to be present in the jwt scope and in the OR if any scope is present that's enough.
+Can be used as decorator and receive a list of scopes. The validator will operate AND validation or a OR validation with the token scope content. For the AND validation all scopes in the `allowed_scopes` param need to be present in the jwt scope and in the OR if any scope is present that's enough. You can receive the token content if you want by setting `token_content` to `True` this will inject the param `token_content: dict` into your function as `kwargs`
 
 ```python
 import auth2guard
@@ -110,8 +110,8 @@ class Request:
 
 auth2guard.set_config(jwk='{"p":"-7pCvLlzsNIRD7utbLZqB...')
 
-@auth2guard.validate(["test1"], and_validation=True)
-def route_callback(request):
+@auth2guard.validate(["test1"], and_validation=True, token_content=True)
+def route_callback(request, token_content: dict):
     pass
 
 request = Request(headers={"Authorization": f"Basic XXX"})
