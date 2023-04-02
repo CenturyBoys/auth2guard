@@ -214,3 +214,15 @@ async def test_validation_async(with_jwk):
     token = gen_token("test1 test2", 2)
     request = Request(headers={"Authorization": f"Basic {token}"})
     await callback(request=request)
+
+
+@pytest.mark.asyncio
+async def test_validation_async_inject_token_content(with_jwk):
+    @auth2guard.validate(["test1", "test2"], inject_token_content=True)
+    async def callback(request, token_content):
+        return token_content
+
+    token = gen_token("test1 test2", 2)
+    request = Request(headers={"Authorization": f"Basic {token}"})
+    token_content = await callback(request=request)
+    assert token_content["scope"] == "test1 test2"

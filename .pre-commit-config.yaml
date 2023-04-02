@@ -26,7 +26,6 @@ repos:
       language: system
       types: [ python ]
       pass_filenames: false
-      always_run: true
     - id: mutatest
       name: mutatest
       entry: mutatest
@@ -40,4 +39,3 @@ repos:
           "auth2guard",
         ]
       pass_filenames: false
-      always_run: true
