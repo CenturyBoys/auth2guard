@@ -206,7 +206,18 @@ def test_validation_with_and_validation_false(with_jwk):
 
 
 @pytest.mark.asyncio
-async def test_validation_async(with_jwk):
+async def test_validation_async_with_array_scope(with_jwk):
+    @auth2guard.validate(["test1", "test2"])
+    async def callback(request):
+        pass
+
+    token = gen_token(["test1", "test2"], 2)
+    request = Request(headers={"Authorization": f"Basic {token}"})
+    await callback(request=request)
+
+
+@pytest.mark.asyncio
+async def test_validation_async_with_string_scope(with_jwk):
     @auth2guard.validate(["test1", "test2"])
     async def callback(request):
         pass
