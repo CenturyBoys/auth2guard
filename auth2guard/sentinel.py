@@ -189,7 +189,9 @@ class Sentinel:
         token_type_and_content = self.__get_token(request=request)
         token_content = self.__decode_token(token_content=token_type_and_content[1])
         token_scope = token_content.get("scope", "")
-        scopes = set(token_scope.split(" "))
+        scopes = set(
+            token_scope.split(" ") if isinstance(token_scope, str) else token_scope
+        )
         scopes_sub_set = self.__allowed_scopes - scopes
         and_validation_satisfied = not scopes_sub_set and self.__and_validation
         or_operation_satisfied = (
