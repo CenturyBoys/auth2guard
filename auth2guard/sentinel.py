@@ -104,11 +104,20 @@ class Sentinel:
             )
         cls.__config.update({"request_token_callback": request_token_callback})
 
-    def __init__(
-        self, allowed_scopes: set, and_validation: bool, inject_token_content: bool
+    def __init__(  # pylint: disable=R0913
+        self,
+        allowed_scopes: set,
+        scope_and_validation: bool,
+        inject_token_content: bool,
+        allowed_audiences: set = None,
+        audience_and_validation: bool = False,
     ):
+        if allowed_audiences is None:
+            allowed_audiences = {}
         self.__allowed_scopes = allowed_scopes
-        self.__and_validation = and_validation
+        self.__allowed_audiences = allowed_audiences
+        self.__scope_and_validation = scope_and_validation
+        self.__audience_and_validation = audience_and_validation
         self.__inject_token_content = inject_token_content
 
     def __call__(self, func):
@@ -185,20 +194,40 @@ class Sentinel:
                 message="authentication.not_from_origin",
             )
 
-    def _supervision(self, request: Request) -> dict:
-        token_type_and_content = self.__get_token(request=request)
-        token_content = self.__decode_token(token_content=token_type_and_content[1])
+    def _validate_scope(self, token_content: dict):
         token_scope = token_content.get("scope", "")
         scopes = set(
             token_scope.split(" ") if isinstance(token_scope, str) else token_scope
         )
         scopes_sub_set = self.__allowed_scopes - scopes
-        and_validation_satisfied = not scopes_sub_set and self.__and_validation
-        or_operation_satisfied = (
-            bool(len(self.__allowed_scopes) - len(scopes_sub_set))
-            and not self.__and_validation
-        )
-        if not (and_validation_satisfied or or_operation_satisfied):
+        if self.__scope_and_validation:
+            return not scopes_sub_set
+
+        or_operation_satisfied = [
+            scope in token_scope for scope in self.__allowed_scopes
+        ]
+        return any(or_operation_satisfied)
+
+    def _validate_audience(self, token_content: dict):
+        if not self.__allowed_audiences:
+            return True
+        token_aud = token_content.get("aud", "")
+        scopes = set(token_aud.split(" ") if isinstance(token_aud, str) else token_aud)
+        audiences_sub_set = self.__allowed_audiences - scopes
+        if self.__audience_and_validation:
+            return not audiences_sub_set
+
+        or_operation_satisfied = [
+            audience in token_aud for audience in self.__allowed_audiences
+        ]
+        return any(or_operation_satisfied)
+
+    def _supervision(self, request: Request) -> dict:
+        token_type_and_content = self.__get_token(request=request)
+        token_content = self.__decode_token(token_content=token_type_and_content[1])
+        scope_validation = self._validate_scope(token_content=token_content)
+        audience_validation = self._validate_audience(token_content=token_content)
+        if not (scope_validation and audience_validation):
             self.exception_raiser(
                 exception_type=ExceptionType.UNAUTHORIZED,
                 message="authentication.unauthorized",
