@@ -66,7 +66,7 @@ jwk = (
 
 
 @pytest.fixture()
-def route_callback():
+def route_only_with_scope_callback():
     @auth2guard.validate(["test1", "test2"])
     def callback(request):
         pass
@@ -74,43 +74,47 @@ def route_callback():
     return callback
 
 
-def test_set_config_wrong_type_request_token_callback_with_custom_error(route_callback):
+def test_set_config_wrong_type_request_token_callback_with_custom_error(
+    route_only_with_scope_callback,
+):
     class MyException(Exception):
         pass
 
     request = Request(headers={})
     auth2guard.overwrite_exceptions(token_not_found=MyException)
     with pytest.raises(MyException) as error:
-        route_callback(request=request)
+        route_only_with_scope_callback(request=request)
 
     auth2guard.overwrite_exceptions(token_not_found=ValueError)
     assert error.value.args[0] == "authentication.token_not_found"
 
 
-def test_validation_with_token_not_supplied_exception(route_callback):
+def test_validation_with_token_not_supplied_exception(route_only_with_scope_callback):
     request = Request(headers={})
 
     with pytest.raises(ValueError) as error:
-        route_callback(request=request)
+        route_only_with_scope_callback(request=request)
     assert error.value.args[0] == "authentication.token_not_found"
 
 
-def test_validation_with_jwt_not_supplied_exception(route_callback):
+def test_validation_with_jwt_not_supplied_exception(route_only_with_scope_callback):
     token = gen_token("", 2)
     request = Request(headers={"Authorization": f"Basic {token[:-1]}@"})
 
     with pytest.raises(ValueError) as error:
-        route_callback(request=request)
+        route_only_with_scope_callback(request=request)
     assert error.value.args[0] == "authentication.jwt_not_supplied"
 
 
-def gen_token(scope, time):
+def gen_token(scope, time, audience=None):
     jwt_instance = jwt.JWT()
     global jwk
     payload = {
         "scope": scope,
         "exp": int(datetime.now().timestamp() + time),
     }
+    if audience:
+        payload.update({"aud": audience})
     jwk_dict = json.loads(jwk)
     jwt_key = jwt.jwk_from_dict(jwk_dict)
     token = jwt_instance.encode(payload=payload, key=jwt_key, alg="RS256")
@@ -125,41 +129,51 @@ def with_jwk():
     auth2guard.Sentinel._Sentinel__config = {}
 
 
-def test_validation_with_token_expired_exception(route_callback, with_jwk):
+def test_validation_with_token_expired_exception(
+    route_only_with_scope_callback, with_jwk
+):
     token = gen_token("", -1)
     request = Request(headers={"Authorization": f"Basic {token}"})
 
     with pytest.raises(ValueError) as error:
-        route_callback(request=request)
+        route_only_with_scope_callback(request=request)
     assert error.value.args[0] == "authentication.expired_token"
 
 
-def test_validation_with_not_from_origin_exception(route_callback, with_jwk):
+def test_validation_with_not_from_origin_exception(
+    route_only_with_scope_callback, with_jwk
+):
     token = gen_token("", -1)
     request = Request(headers={"Authorization": f"Basic {token[:-1]}@"})
 
     with pytest.raises(ValueError) as error:
-        route_callback(request=request)
+        route_only_with_scope_callback(request=request)
     assert error.value.args[0] == "authentication.not_from_origin"
 
 
-def test_validation_with_unauthorized_exception(route_callback, with_jwk):
+def test_validation_scope_with_unauthorized_exception(
+    route_only_with_scope_callback, with_jwk
+):
     token = gen_token("", 2)
     request = Request(headers={"Authorization": f"Basic {token}"})
 
     with pytest.raises(ValueError) as error:
-        route_callback(request=request)
+        route_only_with_scope_callback(request=request)
     assert error.value.args[0] == "authentication.unauthorized"
 
 
-def test_validation_with_http_header_name_token_config(route_callback, with_jwk):
+def test_validation_scope_with_http_header_name_token_config(
+    route_only_with_scope_callback, with_jwk
+):
     token = gen_token("test1 test2", 2)
     request = Request(headers={"x-token": f"Basic {token}"})
     auth2guard.set_config(http_header_name_token="x-token")
-    route_callback(request=request)
+    route_only_with_scope_callback(request=request)
 
 
-def test_validation_with_request_token_callback_config(route_callback, with_jwk):
+def test_validation_scope_with_request_token_callback_config(
+    route_only_with_scope_callback, with_jwk
+):
     token = gen_token("test1 test2", 2)
     request = Request(headers={"x-token": f"Basic {token}"})
 
@@ -167,25 +181,29 @@ def test_validation_with_request_token_callback_config(route_callback, with_jwk)
         return request.headers.get("x-token")
 
     auth2guard.set_config(request_token_callback=request_token_callback)
-    route_callback(request=request)
+    route_only_with_scope_callback(request=request)
 
 
-def test_validation_with_and_validation_true_raise_exception(route_callback, with_jwk):
+def test_validation_scope_with_and_validation_true_raise_exception(
+    route_only_with_scope_callback, with_jwk
+):
     token = gen_token("test1", 2)
     request = Request(headers={"Authorization": f"Basic {token}"})
     with pytest.raises(ValueError) as error:
-        route_callback(request=request)
+        route_only_with_scope_callback(request=request)
     assert error.value.args[0] == "authentication.unauthorized"
 
 
-def test_validation_with_and_validation_true(route_callback, with_jwk):
+def test_validation_scope_with_and_validation_true(
+    route_only_with_scope_callback, with_jwk
+):
     token = gen_token("test1 test2", 2)
     request = Request(headers={"Authorization": f"Basic {token}"})
-    route_callback(request=request)
+    route_only_with_scope_callback(request=request)
 
 
-def test_validation_with_and_validation_false_raise_exception(with_jwk):
-    @auth2guard.validate(["test1", "test2"], and_validation=False)
+def test_validation_scope_with_and_validation_false_raise_exception(with_jwk):
+    @auth2guard.validate(["test1", "test2"], scope_and_validation=False)
     def callback(request):
         pass
 
@@ -195,8 +213,8 @@ def test_validation_with_and_validation_false_raise_exception(with_jwk):
         callback(request=request)
 
 
-def test_validation_with_and_validation_false(with_jwk):
-    @auth2guard.validate(["test1", "test2"], and_validation=False)
+def test_validation_scope_with_and_validation_false(with_jwk):
+    @auth2guard.validate(["test1", "test2"], scope_and_validation=False)
     def callback(request):
         pass
 
@@ -206,7 +224,18 @@ def test_validation_with_and_validation_false(with_jwk):
 
 
 @pytest.mark.asyncio
-async def test_validation_async(with_jwk):
+async def test_validation_scope_async_with_array_scope(with_jwk):
+    @auth2guard.validate(["test1", "test2"])
+    async def callback(request):
+        pass
+
+    token = gen_token(["test1", "test2"], 2)
+    request = Request(headers={"Authorization": f"Basic {token}"})
+    await callback(request=request)
+
+
+@pytest.mark.asyncio
+async def test_validation_scope_async_with_string_scope(with_jwk):
     @auth2guard.validate(["test1", "test2"])
     async def callback(request):
         pass
@@ -217,7 +246,7 @@ async def test_validation_async(with_jwk):
 
 
 @pytest.mark.asyncio
-async def test_validation_async_inject_token_content(with_jwk):
+async def test_validation_scope_async_inject_token_content(with_jwk):
     @auth2guard.validate(["test1", "test2"], inject_token_content=True)
     async def callback(request, token_content):
         return token_content
@@ -226,3 +255,133 @@ async def test_validation_async_inject_token_content(with_jwk):
     request = Request(headers={"Authorization": f"Basic {token}"})
     token_content = await callback(request=request)
     assert token_content["scope"] == "test1 test2"
+
+
+#########################
+
+
+@pytest.fixture()
+def route_with_audience_callback():
+    @auth2guard.validate(allowed_scopes=["test1"], allowed_audiences=["test1", "test2"])
+    def callback(request):
+        pass
+
+    return callback
+
+
+def test_validation_audience_with_unauthorized_exception(
+    route_with_audience_callback, with_jwk
+):
+    token = gen_token("", 2, "")
+    request = Request(headers={"Authorization": f"Basic {token}"})
+
+    with pytest.raises(ValueError) as error:
+        route_with_audience_callback(request=request)
+    assert error.value.args[0] == "authentication.unauthorized"
+
+
+def test_validation_audience_with_http_header_name_token_config(
+    route_with_audience_callback, with_jwk
+):
+    token = gen_token("test1", 2, "test1 test2")
+    request = Request(headers={"x-token": f"Basic {token}"})
+    auth2guard.set_config(http_header_name_token="x-token")
+    route_with_audience_callback(request=request)
+
+
+def test_validation_audience_with_request_token_callback_config(
+    route_with_audience_callback, with_jwk
+):
+    token = gen_token("test1", 2, "test1 test2")
+    request = Request(headers={"x-token": f"Basic {token}"})
+
+    def request_token_callback(request: Request):
+        return request.headers.get("x-token")
+
+    auth2guard.set_config(request_token_callback=request_token_callback)
+    route_with_audience_callback(request=request)
+
+
+def test_validation_audience_with_and_validation_true_raise_exception(
+    route_with_audience_callback, with_jwk
+):
+    token = gen_token("test1", 2, "test1")
+    request = Request(headers={"Authorization": f"Basic {token}"})
+    with pytest.raises(ValueError) as error:
+        route_with_audience_callback(request=request)
+    assert error.value.args[0] == "authentication.unauthorized"
+
+
+def test_validation_audience_with_and_validation_true(
+    route_with_audience_callback, with_jwk
+):
+    token = gen_token("test1", 2, "test1 test2")
+    request = Request(headers={"Authorization": f"Basic {token}"})
+    route_with_audience_callback(request=request)
+
+
+def test_validation_audience_with_and_validation_false_raise_exception(with_jwk):
+    @auth2guard.validate(
+        allowed_scopes=["test1"],
+        scope_and_validation=False,
+        allowed_audiences=["test1", "test2"],
+        audience_and_validation=False,
+    )
+    def callback(request):
+        pass
+
+    token = gen_token("test1", 2, "test3")
+    request = Request(headers={"Authorization": f"Basic {token}"})
+    with pytest.raises(ValueError) as error:
+        callback(request=request)
+
+
+def test_validation_audience_with_and_validation_false(with_jwk):
+    @auth2guard.validate(
+        allowed_scopes=["test1"],
+        scope_and_validation=False,
+        allowed_audiences=["test1", "test2"],
+        audience_and_validation=False,
+    )
+    def callback(request):
+        pass
+
+    token = gen_token("test1", 2, "test3 test1")
+    request = Request(headers={"Authorization": f"Basic {token}"})
+    callback(request=request)
+
+
+@pytest.mark.asyncio
+async def test_validation_audience_async_with_array_scope(with_jwk):
+    @auth2guard.validate(allowed_scopes=["test1"], allowed_audiences=["test1", "test2"])
+    async def callback(request):
+        pass
+
+    token = gen_token(["test1"], 2, ["test1", "test2"])
+    request = Request(headers={"Authorization": f"Basic {token}"})
+    await callback(request=request)
+
+
+@pytest.mark.asyncio
+async def test_validation_audience_async_with_string_audience(with_jwk):
+    @auth2guard.validate(allowed_scopes=["test1"], allowed_audiences=["test1", "test2"])
+    async def callback(request):
+        pass
+
+    token = gen_token("test1", 2, "test1 test2")
+    request = Request(headers={"Authorization": f"Basic {token}"})
+    await callback(request=request)
+
+
+@pytest.mark.asyncio
+async def test_validation_audience_async_inject_token_content(with_jwk):
+    @auth2guard.validate(
+        ["test1"], inject_token_content=True, allowed_audiences=["test1", "test2"]
+    )
+    async def callback(request, token_content):
+        return token_content
+
+    token = gen_token("test1", 2, "test1 test2")
+    request = Request(headers={"Authorization": f"Basic {token}"})
+    token_content = await callback(request=request)
+    assert token_content["aud"] == "test1 test2"

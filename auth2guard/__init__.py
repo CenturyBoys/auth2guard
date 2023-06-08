@@ -9,20 +9,28 @@ from auth2guard.sentinel import Sentinel
 
 def validate(
     allowed_scopes: List[str],
-    and_validation: bool = True,
+    scope_and_validation: bool = True,
     inject_token_content: bool = False,
+    allowed_audiences: List[str] = None,
+    audience_and_validation: bool = True,
 ) -> Sentinel:
     """
     This is a decorator for you routes. Will return a Sentinel instance.
     :param allowed_scopes: List of scopes that is required for access this route
-    :param and_validation: Boolean to define if the allowed_scopes is AND operation or a OR operaion
+    :param scope_and_validation: Boolean to define if the allowed_scopes
+    is AND operation or a OR operaion
     :param inject_token_content: Boolean will inject the token_content
+    :param allowed_audiences: List of audiences that is required for access this route
+    :param audience_and_validation: Boolean to define if the allowed_audiences
+    is AND operation or a OR operaion
     :return: Sentinel function wrapper
     """
     return Sentinel(
         allowed_scopes=set(allowed_scopes),
-        and_validation=and_validation,
+        scope_and_validation=scope_and_validation,
         inject_token_content=inject_token_content,
+        allowed_audiences=set(allowed_audiences) if allowed_audiences else None,
+        audience_and_validation=audience_and_validation,
     )
 
 

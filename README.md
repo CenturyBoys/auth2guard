@@ -108,11 +108,20 @@ class Request:
     def headers(self) -> dict:
         return self._headers
 
+
 auth2guard.set_config(jwk='{"p":"-7pCvLlzsNIRD7utbLZqB...')
 
-@auth2guard.validate(["test1"], and_validation=True, token_content=True)
+
+@auth2guard.validate(
+    allowed_scopes=["test1"], 
+    scope_and_validation=True, 
+    inject_token_content=True,
+    allowed_audiences=["test1"],
+    audience_and_validation=True
+)
 def route_callback(request, token_content: dict):
     pass
+
 
 request = Request(headers={"Authorization": f"Basic XXX"})
 route_callback(request=request)
